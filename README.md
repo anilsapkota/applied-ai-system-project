@@ -40,9 +40,36 @@ Real-world recommenders like Spotify or YouTube work by building a profile of wh
 | `target_energy` | float 0–1 | Compared to `song.energy` using `1 - abs(user - song)` proximity |
 | `likes_acoustic` | bool | If `True`, rewards high `acousticness`; if `False`, feature is ignored |
 
-### How a Score Is Computed
+### Algorithm Recipe — How a Score Is Computed
 
-Each song receives a weighted sum across those four preference dimensions. Genre and mood matches contribute a fixed bonus (binary). Energy and acousticness contribute a continuous proximity score. Songs are then sorted highest-to-lowest and the top `k` are returned as recommendations.
+Each song is evaluated independently against the user profile and receives a
+weighted sum across five signals. Songs are then sorted highest-to-lowest and
+the top `k` are returned as recommendations.
+
+| Signal | Rule | Points |
+|---|---|---|
+| **Genre match** | `song.genre == user_prefs["genre"]` (exact) | **+2.0** |
+| **Mood match** | `song.mood == user_prefs["mood"]` (exact) | **+1.0** |
+| **Energy proximity** | `1.5 × (1 − abs(song.energy − target_energy))` | **+0.0 → +1.5** |
+| **Valence proximity** | `1.0 × (1 − abs(song.valence − target_valence))` | **+0.0 → +1.0** |
+| **Acoustic alignment** | `likes_acoustic=True` and `acousticness > 0.60` → +0.5; `likes_acoustic=False` and `acousticness < 0.30` → +0.5; strong mismatch → −0.5 | **−0.5 → +0.5** |
+
+**Maximum possible score: ~6.0**
+
+**Why these weights?**
+- Genre (2.0) outweighs mood (1.0) because genre is the hardest identity signal
+  — a jazz listener should not get pop regardless of energy or mood.
+- Energy (max 1.5) outweighs valence (max 1.0) because the dataset's energy
+  range (0.18–0.97) is the strongest differentiator between songs.
+- Acoustic alignment (±0.5) acts as a tiebreaker, not a category decider.
+
+### Known Biases and Limitations
+
+- **Genre over-prioritization.** Because genre carries the highest fixed weight (+2.0), a song with a perfect mood, energy, and valence match but the wrong genre will always rank below a genre-matched song with mediocre numeric scores. Great cross-genre discoveries will be suppressed.
+- **Exact-match brittleness.** Genre and mood are matched as exact strings. A user who prefers `"indie pop"` gets zero credit for a song tagged `"pop"`, even though they are sonically close. Any typo or alternate label breaks the match entirely.
+- **Catalog skew.** With only 17 songs, several genres (lofi, ambient, blues, folk, classical) each have only 1–2 representatives. A user whose preferred genre is underrepresented will receive off-genre results simply because there are not enough candidates to fill the top K.
+- **Acoustic signal asymmetry.** `likes_acoustic=False` is rewarded for any song with `acousticness < 0.30`, which describes 6 of the 17 songs. `likes_acoustic=True` is rewarded for `acousticness > 0.60`, which also describes roughly 6 songs. The threshold choice directly controls how many songs can earn this bonus.
+- **No listening history.** The system treats every session as a fresh start. It cannot learn that a user skipped three rock songs in a row or that they always play lofi during study hours.
 
 ---
 
