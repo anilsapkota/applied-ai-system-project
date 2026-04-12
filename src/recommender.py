@@ -72,20 +72,21 @@ def score_song(user_prefs: Dict, song: Dict) -> Tuple[float, List[str]]:
     score = 0.0
     reasons = []
 
+    # EXPERIMENT: genre weight halved (1.0), energy weight doubled (3.0×)
     # Genre match — strongest identity signal
     if song["genre"] == user_prefs.get("genre", ""):
-        score += 2.0
-        reasons.append(f"genre match (+2.0)")
+        score += 1.0
+        reasons.append(f"genre match (+1.0)")
 
     # Mood match — contextual fit
     if song["mood"] == user_prefs.get("mood", ""):
         score += 1.0
         reasons.append(f"mood match (+1.0)")
 
-    # Energy proximity — continuous signal, weighted 1.5
+    # Energy proximity — continuous signal, weighted 3.0
     target_energy = user_prefs.get("target_energy")
     if target_energy is not None:
-        energy_score = 1.5 * (1 - abs(song["energy"] - target_energy))
+        energy_score = 3.0 * (1 - abs(song["energy"] - target_energy))
         score += energy_score
         reasons.append(f"energy proximity ({energy_score:+.2f})")
 

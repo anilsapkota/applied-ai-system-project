@@ -111,7 +111,7 @@ def print_recommendations(
     for rank, rec in enumerate(recommendations, start=1):
         song, score, explanation = rec
         print(f"\n  #{rank}  {song['title']}  —  {song['artist']}")
-        print(f"       Score : {score:.2f} / 6.00")
+        print(f"       Score : {score:.2f} / 6.50")
         print(f"       Genre : {song['genre']}  |  Mood: {song['mood']}"
               f"  |  Energy: {song['energy']:.2f}")
         print(f"       Why:")
