@@ -134,6 +134,8 @@ You will go deeper on this in your model card.
 
 ## Reflection
 
+![alt text](image.png)
+
 Read and complete `model_card.md`:
 
 [**Model Card**](model_card.md)

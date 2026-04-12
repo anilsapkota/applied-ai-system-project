@@ -16,25 +16,35 @@ def main() -> None:
     songs = load_songs("data/songs.csv")
     print(f"Loaded songs: {len(songs)}")
 
-    # Taste profile: high-energy listener who prefers dark, driving rock
+    # Taste profile: upbeat pop listener who wants happy, high-energy tracks
     user_prefs = {
-        "genre":          "rock",    # hard identity signal; strongest weight
-        "mood":           "intense", # contextual target; workout/focus
-        "target_energy":  0.88,     # wants high intensity; penalizes low-energy songs
-        "target_valence": 0.45,     # prefers darker/edgier feel over sunny pop
-        "likes_acoustic": False,    # electronic/distorted production preferred
+        "genre":          "pop",     # hard identity signal; strongest weight
+        "mood":           "happy",   # contextual target; feel-good listening
+        "target_energy":  0.80,      # wants lively but not exhausting energy
+        "target_valence": 0.82,      # prefers bright, sunny emotional tone
+        "likes_acoustic": False,     # produced/electronic sound preferred
     }
 
     recommendations = recommend_songs(user_prefs, songs, k=5)
 
-    print("\nTop recommendations:\n")
-    for rec in recommendations:
-        # You decide the structure of each returned item.
-        # A common pattern is: (song, score, explanation)
+    width = 60
+    print(f"\n{'=' * width}")
+    print(f"  Top {len(recommendations)} Recommendations")
+    print(f"  Profile: {user_prefs['genre']} / {user_prefs['mood']}")
+    print(f"{'=' * width}")
+
+    for rank, rec in enumerate(recommendations, start=1):
         song, score, explanation = rec
-        print(f"{song['title']} - Score: {score:.2f}")
-        print(f"Because: {explanation}")
-        print()
+        print(f"\n  #{rank}  {song['title']}  —  by {song['artist']}")
+        print(f"       Score: {score:.2f} / 6.00")
+        print(f"       Genre: {song['genre']}  |  Mood: {song['mood']}"
+              f"  |  Energy: {song['energy']:.2f}")
+        print(f"       Why:")
+        for reason in explanation.split("; "):
+            print(f"         • {reason}")
+        print(f"  {'-' * (width - 2)}")
+
+    print(f"{'=' * width}\n")
 
 
 if __name__ == "__main__":
