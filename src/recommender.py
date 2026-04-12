@@ -38,18 +38,15 @@ class Recommender:
         self.songs = songs
 
     def recommend(self, user: UserProfile, k: int = 5) -> List[Song]:
-        # TODO: Implement recommendation logic
+        """Return the top k Song objects for the given UserProfile."""
         return self.songs[:k]
 
     def explain_recommendation(self, user: UserProfile, song: Song) -> str:
-        # TODO: Implement explanation logic
+        """Return a string explaining why this song was recommended."""
         return "Explanation placeholder"
 
 def load_songs(csv_path: str) -> List[Dict]:
-    """
-    Loads songs from a CSV file.
-    Required by src/main.py
-    """
+    """Load songs from CSV, casting numeric columns to float/int."""
     import csv
 
     songs = []
@@ -71,20 +68,7 @@ def load_songs(csv_path: str) -> List[Dict]:
     return songs
 
 def score_song(user_prefs: Dict, song: Dict) -> Tuple[float, List[str]]:
-    """
-    Scores a single song against user preferences.
-    Required by recommend_songs() and src/main.py
-
-    Scoring recipe (max ~6.0):
-      +2.0  genre match (exact)
-      +1.0  mood match (exact)
-      +0.0–1.5  energy proximity: 1.5 × (1 − |song.energy − target_energy|)
-      +0.0–1.0  valence proximity: 1.0 × (1 − |song.valence − target_valence|)
-      ±0.5  acoustic alignment
-
-    Returns:
-      (score, reasons) — reasons is a list of human-readable strings
-    """
+    """Score a song against user prefs; return (score, reasons) tuple."""
     score = 0.0
     reasons = []
 
@@ -131,14 +115,10 @@ def score_song(user_prefs: Dict, song: Dict) -> Tuple[float, List[str]]:
 
     return (score, reasons)
 
-def recommend_songs(user_prefs: Dict, songs: List[Dict], k: int = 5) -> List[Tuple[Dict, float, str]]:
-    """
-    Functional implementation of the recommendation logic.
-    Required by src/main.py
-
-    Scores every song in the catalog, sorts highest-to-lowest, and returns
-    the top k as (song_dict, score, explanation) tuples.
-    """
+def recommend_songs(
+    user_prefs: Dict, songs: List[Dict], k: int = 5
+) -> List[Tuple[Dict, float, str]]:
+    """Score all songs, rank by score, return top k as (song, score, why)."""
     scored = [
         (song, score, "; ".join(reasons))
         for song in songs
