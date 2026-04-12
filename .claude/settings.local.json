@@ -6,7 +6,8 @@
       "Bash(python -m src.main)",
       "Bash(python main.py)",
       "Bash(PYTHONPATH=src python src/main.py)",
-      "Bash(python src/main.py)"
+      "Bash(python src/main.py)",
+      "Bash(awk 'length > 79 {print NR\": \"length\" cols: \"$0}' \"c:\\\\Users\\\\Anil\\\\Documents\\\\Learning_Projects\\\\codepath\\\\AIEngineering\\\\ai110-module3show-musicrecommendersimulation-starter\\\\model_card.md\")"
     ]
   }
 }
