@@ -70,6 +70,24 @@ Prompts:
 - Cases where the system overfits to one preference  
 - Ways the scoring might unintentionally favor some users  
 
+### Singleton Genre Bias
+
+The most significant bias discovered during experimentation is what can be
+called the **singleton genre trap**. Thirteen of the fifteen genres in the
+catalog have exactly one song each, yet the scoring logic awards the same
+genre-match bonus
+regardless of how many songs that genre contains. This creates a hidden
+unfairness: a user who prefers `lofi` benefits from three genre-matched
+candidates in every recommendation run, while a user who prefers `hip-hop`,
+`blues`, `r&b`, or `metal` benefits from only one. After that single match,
+their remaining four results are filled entirely by songs from unrelated genres
+— chosen only because their energy and valence happen to be numerically close.
+In practice this means the system silently serves most users as if they had no
+genre preference at all, while appearing to respect it. A fairer design would
+either normalize the genre bonus by catalog density, or explicitly surface the
+scarcity to the user rather than papering over it with continuous-signal
+fallbacks.
+
 ---
 
 ## 7. Evaluation  
