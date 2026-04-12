@@ -17,17 +17,32 @@ Replace this paragraph with your own summary of what your version does.
 
 ## How The System Works
 
-Explain your design in plain language.
+Real-world recommenders like Spotify or YouTube work by building a profile of what you like — your history, ratings, skips — and then finding content that is similar either to that profile or to what people like you have enjoyed. This project simulates the simpler of those two approaches: **content-based filtering**, where each song is described by its own attributes and the system finds songs whose attributes are closest to what the user says they want. There is no listening history and no comparison to other users. The system will prioritize **genre and mood as hard identity signals** (a jazz listener should not get pop regardless of energy level), then use **proximity on continuous features** like energy and valence to fine-tune the ranking within matching categories.
 
-Some prompts to answer:
+### `Song` Features
 
-- What features does each `Song` use in your system
-  - For example: genre, mood, energy, tempo
-- What information does your `UserProfile` store
-- How does your `Recommender` compute a score for each song
-- How do you choose which songs to recommend
+| Feature | Type | Role |
+|---|---|---|
+| `genre` | string | Primary identity filter (pop, lofi, rock, ambient, jazz, synthwave, indie pop) |
+| `mood` | string | Contextual fit (happy, chill, intense, relaxed, moody, focused) |
+| `energy` | float 0–1 | Intensity axis — calm vs. driving |
+| `valence` | float 0–1 | Emotional color — sunny vs. melancholic |
+| `acousticness` | float 0–1 | Production style — organic vs. electronic |
+| `tempo_bpm` | float | Pace; correlated with energy, used as secondary signal |
+| `danceability` | float 0–1 | Rhythmic quality; useful for activity-specific contexts |
 
-You can include a simple diagram or bullet list if helpful.
+### `UserProfile` Features
+
+| Preference | Type | How It Is Used |
+|---|---|---|
+| `favorite_genre` | string | Matched against `song.genre`; highest weight in the scorer |
+| `favorite_mood` | string | Matched against `song.mood`; second highest weight |
+| `target_energy` | float 0–1 | Compared to `song.energy` using `1 - abs(user - song)` proximity |
+| `likes_acoustic` | bool | If `True`, rewards high `acousticness`; if `False`, feature is ignored |
+
+### How a Score Is Computed
+
+Each song receives a weighted sum across those four preference dimensions. Genre and mood matches contribute a fixed bonus (binary). Energy and acousticness contribute a continuous proximity score. Songs are then sorted highest-to-lowest and the top `k` are returned as recommendations.
 
 ---
 
