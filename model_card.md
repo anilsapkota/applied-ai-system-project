@@ -92,16 +92,49 @@ fallbacks.
 
 ## 7. Evaluation  
 
-How you checked whether the recommender behaved as expected. 
+Six user profiles were tested across two runs — one with the original weights
+and one after an experiment that doubled the energy weight and halved the genre
+weight. Three profiles represented real listener types; three were adversarial
+profiles built to expose weaknesses in the scoring logic.
 
-Prompts:  
+**Profiles tested:**
 
-- Which user profiles you tested  
-- What you looked for in the recommendations  
-- What surprised you  
-- Any simple tests or comparisons you ran  
+- **High-Energy Pop** — genre: pop, mood: happy, energy target: 0.85
+- **Chill Lofi** — genre: lofi, mood: chill, energy target: 0.38
+- **Deep Intense Rock** — genre: rock, mood: intense, energy target: 0.90
+- **Conflicting Energy vs Mood** — genre: folk, mood: sad, energy target: 0.90
+- **Classical but Hyper-Energy** — genre: classical, mood: peaceful,
+  energy target: 0.95
+- **All-Neutral** — no genre or mood, all values at 0.50
 
-No need for numeric metrics unless you created some.
+**What we looked for:** whether the top-5 results matched what a real listener
+with that taste would actually enjoy, and whether the scoring reasons made
+intuitive sense.
+
+**What surprised us:**
+
+The most surprising result came from the *Deep Intense Rock* profile. Metal
+(Iron Cascade) ranked below pop (Gym Hero) even though metal is obviously
+closer to rock than pop is. The reason was that Gym Hero carries the label
+"intense" — matching the mood preference — while Iron Cascade is labeled
+"aggressive," which the system treats as a complete mismatch. A single word
+difference in a mood tag changed the ranking more than the actual genre of the
+music.
+
+The *Classical but Hyper-Energy* profile revealed a clean tipping point: under
+the original weights, Morning Sonata (classical) won because the genre and mood
+bonus overrode the energy mismatch. After doubling the energy weight, Morning
+Sonata disappeared from the top 5 entirely and was replaced by pop and EDM
+songs. This showed that the original system was essentially ignoring energy for
+well-matched genre/mood profiles — and that the two weight choices produce
+qualitatively different recommenders, not just slightly different rankings.
+
+The *All-Neutral* profile confirmed that without genre or mood anchors, the
+system caps out at 3.70 / 6.50 — less than 57% of the maximum possible score.
+Every result was a mid-tempo song, not because those are the best songs, but
+because they are closest to 0.50 energy. The system has no concept of
+diversity, so it reliably clusters around the mathematical center of the
+dataset.
 
 ---
 
