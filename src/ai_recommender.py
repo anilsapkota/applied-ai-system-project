@@ -12,6 +12,9 @@ import logging
 from typing import Dict, List, Tuple
 
 import anthropic
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from src.recommender import load_songs, recommend_songs
 
