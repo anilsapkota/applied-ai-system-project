@@ -1,51 +1,71 @@
-# Music Recommender Simulation — VibeMatch 1.0
+# VibeMatch 2.0 — AI-Powered Music Recommender with RAG
 
-A rule-based music recommender built as a hands-on simulation of how
-content-based filtering works. Given a user's stated taste preferences, the
-system scores every song in an 18-track catalog and returns the top five
-matches with plain-language explanations.
-
-Built for CodePath AI Engineering (Module 3) as a classroom exploration of
-recommender system design, bias, and evaluation.
+> **CodePath Applied AI Systems — Final Project**
 
 ---
 
-## How the System Works
+## Original Project (Modules 1–3)
 
-This is **content-based filtering**: it reads what a user says they want and
-finds songs whose attributes are closest to that description. There is no
-listening history, no learning over time, and no comparison to other users.
+**VibeMatch 1.0** was a rule-based music recommendation simulation built for CodePath AI Engineering Modules 1–3. It scored an 18-song catalog against hard-coded user taste profiles (genre, mood, energy, valence, acousticness) using a weighted formula and returned the top five matches with plain-language explanations. The system had no AI component — it was a pure Python weighted-sum scorer designed to explore how content-based filtering works and where it breaks down. Three adversarial profiles (conflicting energy vs mood, genre vs energy mismatch, all-neutral inputs) exposed key weaknesses: binary genre labels, singleton genre catalogs, and no contradiction detection.
 
-Each song is scored on five signals and the scores are summed. The top five
-results are returned.
+---
 
-### Scoring Formula
+## What VibeMatch 2.0 Does
 
-| Signal | Rule | Points |
-|---|---|---|
-| Genre match | Exact string match on genre | +1.0 |
-| Mood match | Exact string match on mood | +1.0 |
-| Energy proximity | `3.0 × (1 − abs(energy − target))` | 0.0 → +3.0 |
-| Valence proximity | `1.0 × (1 − abs(valence − target))` | 0.0 → +1.0 |
-| Acoustic alignment | Match → +0.5; mismatch → −0.5 | −0.5 → +0.5 |
+VibeMatch 2.0 upgrades the rule-based simulation into a working AI system. Users describe what they want to listen to in plain English — "something chill and acoustic for studying" — and the system responds with a personalized recommendation backed by real audio feature data.
 
-**Maximum possible score: 6.5**
+The core AI feature is **Retrieval-Augmented Generation (RAG)**:
+1. Claude reads the natural-language query and extracts structured music preferences (genre, mood, energy, etc.)
+2. The original rule-based scorer retrieves the best-matching songs from the catalog using those preferences
+3. Claude reads the retrieved songs alongside the original query and generates a personalized, conversational recommendation
 
-> Note: these are the weights after a weight-shift experiment (see below).
-> The original weights had genre at +2.0 and energy at 1.5×. Doubling energy
-> and halving genre produced more honest results for adversarial profiles.
+The system also includes structured logging, input guardrails, graceful error handling, and a full reliability test suite — including a standalone evaluation harness.
 
-### Song Attributes Used
+---
 
-| Feature | Type | What it captures |
-|---|---|---|
-| `genre` | string | Musical category (pop, lofi, rock, metal, etc.) |
-| `mood` | string | Emotional label (happy, chill, intense, sad, etc.) |
-| `energy` | float 0–1 | Calm vs. driving intensity |
-| `valence` | float 0–1 | Sunny vs. melancholic emotional color |
-| `acousticness` | float 0–1 | Organic/acoustic vs. electronic production |
-| `tempo_bpm` | float | Pace in beats per minute (loaded but not scored) |
-| `danceability` | float 0–1 | Rhythmic quality (loaded but not scored) |
+## System Architecture
+
+```
+┌─────────────────────────────────────────────────────┐
+│                     User Input                      │
+│        "chill lofi for late night studying"         │
+└──────────────────────────┬──────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────┐
+│              STEP 1 — Preference Extraction         │
+│   Claude (Haiku) parses natural language → JSON     │
+│   {genre: "lofi", energy: 0.38, acoustic: true ...} │
+│   Guardrail: empty query returns safe message here  │
+└──────────────────────────┬──────────────────────────┘
+                           │  structured preferences
+                           ▼
+┌─────────────────────────────────────────────────────┐
+│              STEP 2 — Retrieval (RAG)               │
+│   Rule-based scorer reads data/songs.csv            │
+│   Scores all 18 songs on 5 signals                  │
+│   Returns top 10 ranked candidates + scores         │
+└──────────────────────────┬──────────────────────────┘
+                           │  retrieved song context
+                           ▼
+┌─────────────────────────────────────────────────────┐
+│              STEP 3 — Augmented Generation          │
+│   Claude (Haiku) receives:                          │
+│     • original user query                           │
+│     • ranked song list with audio feature data      │
+│   Generates conversational recommendation           │
+└──────────────────────────┬──────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────┐
+│                    Output                           │
+│   Natural-language recommendation with explanations │
+└─────────────────────────────────────────────────────┘
+
+Supporting systems (run throughout):
+  • src/logger.py        → logs every step to logs/vibematch_YYYYMMDD.log
+  • tests/               → pytest unit tests + eval_harness.py for reliability
+```
 
 ---
 
@@ -53,187 +73,255 @@ results are returned.
 
 ```
 ├── data/
-│   └── songs.csv           18-song catalog with all attributes
+│   └── songs.csv                 18-song catalog with audio features
 ├── src/
-│   ├── main.py        Runs all six profiles, prints results
-│   └── recommender.py      load_songs, score_song, recommend_songs
+│   ├── main.py                   Entry point (batch mode + --ai interactive mode)
+│   ├── recommender.py            Rule-based scorer — also the RAG retrieval layer
+│   ├── ai_recommender.py         Claude RAG pipeline (NEW)
+│   └── logger.py                 Structured logging setup (NEW)
 ├── tests/
-│   └── test_recommender.py Unit tests for scoring logic
-├── model_card.md      Full model card (bias, evaluation, reflection)
-└── reflection.md           Profile-pair comparisons in plain language
+│   ├── test_recommender.py       Unit tests for scoring logic
+│   ├── test_ai_recommender.py    Reliability tests for AI layer (NEW)
+│   └── eval_harness.py           Evaluation harness — predefined inputs, pass/fail report (NEW)
+├── logs/                         Auto-created; daily log files written here
+├── .env.example                  API key template (NEW)
+├── model_card.md                 Model card with bias analysis (from v1)
+├── reflection.md                 Profile comparison analysis (from v1)
+└── requirements.txt              Python dependencies
 ```
 
 ---
 
-## Getting Started
+## Setup Instructions
 
-### Setup
+**1. Clone the repo and create a virtual environment:**
 
-1. Create a virtual environment (optional but recommended):
+```bash
+git clone https://github.com/anilsapkota/applied-ai-system-project
+cd applied-ai-system-project
+python -m venv .venv
+source .venv/bin/activate      # Mac / Linux
+.venv\Scripts\activate         # Windows
+```
 
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate      # Mac / Linux
-   .venv\Scripts\activate         # Windows
-   ```
+**2. Install dependencies:**
 
-2. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+**3. Set your Anthropic API key:**
 
-3. Run all six profiles:
+```bash
+cp .env.example .env
+# Open .env and paste your key from https://console.anthropic.com/
+```
 
-   ```bash
-   python -m src.main
-   ```
+Or set it directly in your shell:
 
-### Running Tests
+```bash
+export ANTHROPIC_API_KEY=your_key_here   # Mac/Linux
+set ANTHROPIC_API_KEY=your_key_here      # Windows CMD
+```
+
+**4. Run the original rule-based batch mode (no API key needed):**
+
+```bash
+python -m src.main
+```
+
+**5. Run the AI-powered interactive mode:**
+
+```bash
+python -m src.main --ai
+```
+
+**6. Run the test suite:**
 
 ```bash
 pytest
 ```
 
----
+**7. Run the evaluation harness (dry run — no API key needed):**
 
-## User Profiles Tested
-
-Six profiles were run through the recommender. Three are realistic listener
-types; three are adversarial profiles designed to expose weaknesses.
-
-### Standard Profiles
-
-**High-Energy Pop**
-```python
-{"genre": "pop", "mood": "happy", "target_energy": 0.85,
- "target_valence": 0.85, "likes_acoustic": False}
+```bash
+python -m tests.eval_harness --dry-run
 ```
-Top result: *Sunrise City* (pop/happy) — 6.40 / 6.50. Tight, confident
-results. All five signals aligned.
 
-**Chill Lofi**
-```python
-{"genre": "lofi", "mood": "chill", "target_energy": 0.38,
- "target_valence": 0.58, "likes_acoustic": True}
+**8. Run the evaluation harness against the live API:**
+
+```bash
+python -m tests.eval_harness
 ```
-Top result: *Library Rain* (lofi/chill) — 6.39 / 6.50. The lofi cluster
-in the dataset (3 songs) gives this profile the most variety of any genre.
 
-**Deep Intense Rock**
-```python
-{"genre": "rock", "mood": "intense", "target_energy": 0.90,
- "target_valence": 0.30, "likes_acoustic": False}
+---
+
+## Sample Interactions
+
+### Interaction 1 — Late-night study session
+
 ```
-Top result: *Storm Runner* (rock/intense) — 6.29 / 6.50. #1 is correct,
-but #2 (Gym Hero, pop/intense) ranks above #3 (Iron Cascade, metal) — see
-Limitations below.
+You: I need something chill and acoustic to study late at night
 
-### Adversarial Profiles
+VibeMatch:
+For late-night studying, I'd start with "Midnight Coding" by LoRoom —
+it's a lofi track with energy 0.42 and high acousticness (0.71), designed
+for exactly this kind of focused, low-stimulation listening. "Library Rain"
+by Paper Lanterns is even calmer (energy 0.35, acousticness 0.86) and has
+a slightly more ambient feel if you want something that fades into the
+background. "Focus Flow" by LoRoom rounds out the set — it's labeled
+"focused" rather than "chill" but shares the same low-energy, acoustic
+signature.
 
-**Conflicting Energy vs Mood** — `genre: folk`, `mood: sad`,
-`energy target: 0.90`. Folk and sad songs are the quietest in the catalog
-(energy ~0.25). The scorer can't detect the contradiction and produces a
-scattered playlist: folk at #1 from the identity bonus, metal and rock
-filling the remaining slots from the energy signal.
+All three sit well under 0.45 energy and above 0.70 acousticness, which
+matches exactly what you described.
+```
 
-**Classical but Hyper-Energy** — `genre: classical`, `mood: peaceful`,
-`energy target: 0.95`. Classical tracks have energy ~0.18. Under the old
-weights, Morning Sonata (classical) still won because the genre bonus
-dominated. After the weight experiment, Morning Sonata disappeared from the
-top 5 entirely — replaced by pop and EDM.
+### Interaction 2 — Pre-workout pump-up
 
-**All-Neutral** — no genre, no mood, `energy: 0.50`, `valence: 0.50`.
-Without identity signals, the system caps at 3.70 / 6.50 and clusters
-around mid-tempo songs. The "best" result with no information is simply the
-most mathematically average song in the catalog.
+```
+You: Something loud and high energy to get hyped for the gym
 
----
+VibeMatch:
+For maximum gym energy, "Gym Hero" by Max Pulse is the obvious pick —
+0.93 energy, 132 BPM, and labeled "intense." "Signal Burst" by Prism Wave
+(EDM, 0.88 energy, 140 BPM) is close behind and adds an uplifting feel if
+you want something that feels triumphant rather than just heavy. "Iron
+Cascade" by Wolfburn (metal, 0.97 energy) is the most extreme option —
+168 BPM and aggressive — if you want something that hits harder.
 
-## Experiments
+I'd suggest starting with Gym Hero, then Signal Burst, and saving Iron
+Cascade for the final set.
+```
 
-### Weight Shift: Energy ×2, Genre ÷2
+### Interaction 3 — Empty query guardrail
 
-Original weights: genre +2.0, energy 1.5×.
-Experiment weights: genre +1.0, energy 3.0×.
+```
+You: (blank input)
 
-**What changed:**
+VibeMatch:
+Please describe what kind of music you're looking for.
+```
 
-- The *Classical but Hyper-Energy* profile flipped completely. Morning
-  Sonata won under the original weights (genre bonus dominated); it
-  disappeared from the top 5 after the change (energy pulled results toward
-  pop and EDM). This showed the original system was essentially ignoring
-  energy for well-matched genre profiles.
-- The *Conflicting Energy vs Mood* profile became more honest. The gap
-  between #1 and #2 shrank from 2.84 points to 1.17, making the
-  contradiction visible in the scores instead of hiding it.
-- Standard profiles (Pop, Lofi, Rock) kept the same ranking order. Their
-  signals were consistent enough that changing weights didn't change who won.
+### Interaction 4 — Conflicting preferences (honest response)
 
-**Verdict:** The new weights are better for incoherent and adversarial
-profiles. They don't fix the core structural problem (genre proximity
-blindness) for well-formed profiles.
+```
+You: I want sad acoustic folk music but also super high energy
 
----
+VibeMatch:
+I want to be honest: your request has a built-in conflict. The folk and
+sad songs in this catalog (like "Ember Road" by Hazel Finn, energy 0.25)
+are all low-energy and acoustic — that's the nature of the genre. High
+energy (0.8+) points toward metal, EDM, and pop, which are the opposite
+of folk and sad.
 
-## Limitations and Bias
+The retrieval system's top results reflect this tension: it found "Ember
+Road" as the best folk/sad match, but the energy signal pulled in "Iron
+Cascade" and "Signal Burst" to fill the remaining slots. That playlist
+would feel incoherent.
 
-### The Singleton Genre Trap (most significant)
-
-13 of 15 genres have exactly one song. The system gives the same genre-match
-bonus (+1.0) regardless of catalog depth. A lofi user gets three genre-matched
-candidates per run; a hip-hop or metal user gets one, then the remaining four
-slots fill with unrelated genres chosen by energy proximity alone. Most users
-are silently served as if they had no genre preference.
-
-### Genre and Mood Labels Are Binary
-
-Rock and metal get no partial credit for being adjacent genres. "Aggressive"
-and "intense" are treated as complete strangers. This caused *Iron Cascade*
-(metal/aggressive) to rank below *Gym Hero* (pop/intense) for a rock/intense
-listener — Gym Hero matched the mood label; Iron Cascade did not.
-
-### Acoustic Dead-Zone (acousticness 0.30–0.60)
-
-The acoustic signal only fires at the extremes (< 0.30 or > 0.60). Three
-songs — Rooftop Lights (indie pop, 0.35), Velvet Nights (r&b, 0.32), Golden
-Haze (soul, 0.58) — receive no acoustic signal at all, regardless of user
-preference.
-
-### No Contradiction Detection
-
-If a user's preferences conflict (e.g., folk + sad + energy 0.90), the system
-runs all signals simultaneously and produces a confused playlist. It never
-warns the user that their inputs are incompatible.
+My recommendation: pick one signal. If you want mood and texture, go with
+Ember Road and Rust and Rain. If you want energy, go with Gym Hero or
+Signal Burst. I can't find a song that's genuinely folk, sad, and high
+energy — because that combination doesn't really exist in this catalog
+(or in most music).
+```
 
 ---
 
-## Reflection
+## Design Decisions and Trade-offs
 
-Building VibeMatch made one thing immediately clear: a recommendation system is
-only as smart as the structure of its data. The profiles that produced good
-results (Chill Lofi, High-Energy Pop) felt intelligent not because the
-algorithm was clever, but because those genres happen to cluster naturally in
-the feature space — lofi songs really are low-energy and acoustic; pop songs
-really are high valence and electronic. When the data structure mirrors the
-real world, a weighted sum can look like insight. The adversarial profiles
-broke that illusion the moment the inputs stopped aligning with how the data
-was organized.
+**Why RAG and not a standalone LLM call?**
+A plain LLM call would hallucinate song titles and artists. By grounding the generation step in retrieved catalog data, the AI can only recommend songs that actually exist. The retrieval layer also provides structured audio features (energy, valence, acousticness) that the language model alone cannot reason about.
 
-The more surprising lesson was about labels. The biggest ranking failure in
-the whole project — Iron Cascade (metal) losing to Gym Hero (pop) for a rock
-listener — had nothing to do with weights or math. It happened because a mood
-tag said "aggressive" instead of "intense." One word. Real recommender systems
-at scale deal with this constantly: categories that look precise on paper
-collapse when the labels aren't consistent. No amount of weight tuning fixes a
-labeling problem.
+**Why keep the rule-based scorer as the retrieval layer?**
+The existing weighted-sum scorer already encodes useful domain knowledge (energy proximity matters more than genre for adversarial profiles). Rather than replacing it, RAG uses it as a fast, deterministic retrieval step. This also means batch mode (no API key) still works.
+
+**Why two Claude calls instead of one?**
+Splitting preference extraction and recommendation generation into two calls keeps each prompt focused. A single call that tried to do both would be harder to debug, harder to test, and would mix structured-output logic (JSON) with conversational logic (natural language). The cost is one extra API call per query.
+
+**Why claude-haiku-4-5-20251001?**
+Speed and cost. Haiku is fast enough for interactive use and produces reliable JSON for the preference parsing step. For longer, more nuanced recommendations, the model can be swapped to Sonnet by changing the `model` parameter in `AIRecommender`.
+
+**Trade-off: 18-song catalog**
+The catalog is intentionally small for classroom purposes. The singleton genre problem (13 of 15 genres have exactly one song) limits recommendation diversity. A production system would need a much larger catalog or an external music API.
+
+---
+
+## Testing Summary
+
+**Unit tests (`pytest`):**
+
+| Test | What it checks | Result |
+|---|---|---|
+| `test_recommend_returns_non_empty_string` | Normal query returns text | Pass |
+| `test_empty_query_returns_guardrail_without_api_call` | Empty input hits guardrail before API | Pass |
+| `test_malformed_json_from_claude_falls_back_gracefully` | Bad JSON from Claude doesn't crash | Pass |
+| `test_parse_preferences_returns_required_keys` | Extracted prefs have all 5 required keys | Pass |
+| `test_similar_queries_retrieve_overlapping_candidates` | Identical prefs → identical retrieval | Pass |
+| `test_recommend_returns_songs_sorted_by_score` | Rule-based scorer ranks correctly | Pass |
+| `test_explain_recommendation_returns_non_empty_string` | Explanation is a non-empty string | Pass |
+
+All 7 tests pass. All AI tests are fully mocked — no API key required for `pytest`.
+
+**Evaluation harness (`tests/eval_harness.py --dry-run`):**
+
+4 predefined scenarios checked for: non-empty output, mention of a real catalog song, guardrail activation. All 4 pass in dry-run mode.
+
+**What worked:**
+- The preference parsing step was robust across a wide range of phrasings
+- The RAG grounding reliably prevented hallucinated song titles
+- The guardrail (empty query check) worked consistently before any API call
+
+**What didn't:**
+- The 18-song catalog is too small to handle exotic genre requests — a user asking for blues gets one result then energy-matched pop
+- The preference parser occasionally mapped unusual moods to the wrong genre (e.g., "nostalgic" → "jazz" instead of "hip-hop") because the mapping guide is heuristic
+
+---
+
+## Reflection and Ethics
+
+**Limitations and biases:**
+- The catalog has 18 songs. Genres with one entry (hip-hop, metal, blues, jazz, etc.) are systematically underserved — users with those tastes see one genre match and then energy-proximity fills the rest.
+- The preference parsing prompt uses heuristic mappings that reflect common Western music vocabulary. Users with different cultural references may get worse extractions.
+- The scoring formula was tuned for this specific catalog. Its weights do not generalize.
+
+**Could this be misused?**
+The system recommends music, so direct harm potential is low. However, a more general RAG system built on this architecture could be misused if the retrieval corpus contained harmful content. Mitigation: the generation prompt (`_RECOMMEND_SYSTEM`) restricts Claude to songs in the retrieved list and does not allow it to invent content.
+
+**What surprised me during testing:**
+The most surprising finding was how well the guardrail worked compared to the retrieval quality. A blank query was handled correctly every time. But when the catalog had a semantic gap — a user asked for "nostalgic hip-hop" and the one hip-hop song was labeled "nostalgic" — the system performed well despite the small catalog. The label matching, not the AI, was responsible.
+
+**Collaboration with AI during this project:**
+
+*Helpful suggestion:* When designing the two-step Claude architecture (parse then generate), the AI suggested splitting the prompts so the parsing step returns only JSON and the generation step uses only natural language. This turned out to be the right call — it made testing much easier because the two responsibilities could be mocked and verified independently.
+
+*Flawed suggestion:* In an early draft, the AI suggested using `temperature=0` for the preference parsing step to make it deterministic. This was incorrect advice — the Anthropic API does not expose a `temperature` parameter on `messages.create` the same way OpenAI does, and setting it caused an API error. The fix was to remove the parameter and rely on the system prompt's structured output instruction instead.
+
+---
+
+## Stretch Features Implemented
+
+| Feature | Implementation | Location |
+|---|---|---|
+| **RAG Enhancement** | Two-stage RAG: preference extraction decouples query understanding from retrieval, improving accuracy for ambiguous queries | `src/ai_recommender.py` |
+| **Test Harness** | `eval_harness.py` runs 4 predefined scenarios, checks pass/fail for output validity, catalog grounding, and guardrail behavior | `tests/eval_harness.py` |
+
+---
+
+## Loom Video Walkthrough
+
+> _Add your Loom link here before submission._
+
+---
+
+## Portfolio Reflection
+
+This project taught me that the hardest part of an AI system is not the AI itself — it's the interface between structured data and language. The retrieval layer (rule-based scorer) worked reliably and predictably. The generation layer (Claude) was flexible and natural. The failure points were always in the middle: how well the preference extraction step translated a vague human phrase into a structured query the scorer could use. That translation layer — the seam between unstructured language and structured logic — is where real AI engineering lives. A future employer looking at this project should see: I understand that AI systems are not just prompts, they are retrieval + grounding + generation working together, and each layer needs to be independently testable.
 
 ---
 
 ## Further Reading
 
-- [model_card.md](model_card.md) — Full model card covering algorithm
-  summary, data description, strengths, biases, evaluation, intended use,
-  ideas for improvement, and personal reflection
-- [reflection.md](reflection.md) — Plain-language comparison of all six
-  profile pairs: what changed between outputs and why it makes sense
+- [model_card.md](model_card.md) — Algorithm summary, data description, biases, and evaluation (from v1)
+- [reflection.md](reflection.md) — Plain-language comparison of all six test profiles (from v1)
